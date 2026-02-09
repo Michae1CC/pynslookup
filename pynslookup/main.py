@@ -15,9 +15,21 @@ from ._dns import RecordType
 def _run(args: argparse.Namespace) -> int:
 
     # TODO: This can be a list of record types
-    record_type: RecordType = RecordType((cast(str, args._type)).upper())
+    record_type_raw: str = args._type
     port: int = args.port
     recurse: bool = args.recurse
+
+    if not (0 <= port <= 65_535):
+        print("*** Invalid option: port", file=sys.stderr)
+        return 1
+
+    record_type: RecordType = RecordType("A")
+
+    try:
+        record_type = RecordType((cast(str, args._type)).upper())
+    except ValueError:
+        print("*** Invalid option: type", file=sys.stderr)
+        # Continue on with the default record type
 
     print(record_type)
     print(port)

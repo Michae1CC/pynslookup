@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class RecordType(StrEnum):
+    ANY = "ANY"
     A = "A"
     AAAA = "AAAA"
     TXT = "TXT"
@@ -10,3 +11,6 @@ class RecordType(StrEnum):
     NS = "NS"
     PTR = "PTR"
     SOA = "SOA"
+
+
+print(RecordType("M"))
