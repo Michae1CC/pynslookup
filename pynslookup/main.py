@@ -14,16 +14,19 @@ from typing import Mapping
 from .const import PROGRAM_NAME
 
 from ._dns import RecordType
+from .util.bijective_dict import BijectiveDict
 
-_RECORD_TYPE_TO_ID_MAP: Mapping[RecordType, int] = {
-    RecordType("A"): 1,
-    RecordType("AAAA"): 28,
-    RecordType("TXT"): 28,
-    RecordType("CNAME"): 5,
-    RecordType("MX"): 15,
-    RecordType("NS"): 2,
-    RecordType("SOA"): 6,
-}
+_RECORD_TYPE_TO_ID_MAP: BijectiveDict[RecordType, int] = BijectiveDict(
+    {
+        RecordType("A"): 1,
+        RecordType("AAAA"): 28,
+        RecordType("TXT"): 28,
+        RecordType("CNAME"): 5,
+        RecordType("MX"): 15,
+        RecordType("NS"): 2,
+        RecordType("SOA"): 6,
+    }
+)
 
 
 def _record_type_to_id(record_type: RecordType) -> int:
@@ -33,35 +36,15 @@ def _record_type_to_id(record_type: RecordType) -> int:
         raise ValueError(f"No record id set for record type {record_type}")
 
 
+def _record_id_to_type(id: int) -> RecordType:
+    try:
+        return _RECORD_TYPE_TO_ID_MAP.inv[id]
+    except KeyError:
+        raise ValueError(f"No record type set for record id {id}")
+
+
 # https://datatracker.ietf.org/doc/rfc1035/
 # https://datatracker.ietf.org/doc/rfc2136/
-
-
-def _create_dns_query_message(*, domain: str, q_type: RecordType) -> bytes:
-    transaction_id = random.randint(0, 65535)  # 16-bit ID
-    flags = 0x0100  # Standard query with Recursion Desired
-    qdcount = 1  # One question
-    ancount = 0
-    nscount = 0
-    arcount = 0
-
-    # Pack header (network byte order = big endian)
-    header = struct.pack(
-        "!HHHHHH", transaction_id, flags, qdcount, ancount, nscount, arcount
-    )
-
-    qname = b""
-    for label in domain.split("."):
-        qname += struct.pack("B", len(label))
-        qname += label.encode()
-    qname += b"\x00"
-
-    q_class = 1  # Class IN (Internet)
-    _q_type = 1
-
-    question = qname + struct.pack("!HH", _q_type, q_class)
-
-    return header + question
 
 
 def parse_name(message: bytes, offset: int) -> tuple[str, int]:
@@ -143,6 +126,33 @@ def _parse_dns_response(data: bytes) -> None:
             print("  Address:", ip)
         else:
             print("  Raw Data:", rdata)
+
+
+def _create_dns_query_message(*, domain: str, q_type: RecordType) -> bytes:
+    transaction_id = random.randint(0, 65535)  # 16-bit ID
+    flags = 0x0100  # Standard query with Recursion Desired
+    qdcount = 1  # One question
+    ancount = 0
+    nscount = 0
+    arcount = 0
+
+    # Pack header (network byte order = big endian)
+    header = struct.pack(
+        "!HHHHHH", transaction_id, flags, qdcount, ancount, nscount, arcount
+    )
+
+    qname = b""
+    for label in domain.split("."):
+        qname += struct.pack("B", len(label))
+        qname += label.encode()
+    qname += b"\x00"
+
+    q_class = 1  # Class IN (Internet)
+    _q_type = 1
+
+    question = qname + struct.pack("!HH", _q_type, q_class)
+
+    return header + question
 
 
 def _run(args: argparse.Namespace) -> int:
